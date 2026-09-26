@@ -15,11 +15,11 @@ pub const TEMPLATES: &[Template] = &[
 ║  PLATFORM ..........                                                         ║
 ║  SIZE ..............                                                         ║
 ║                                                                              ║
-╠════════════════════════════ RELEASE NOTES ═══════════════════════════════════╣
+                ╠═══════════════ RELEASE NOTES ════════════════╣
 ║                                                                              ║
 ║  Your release notes go here.                                                 ║
 ║                                                                              ║
-╠════════════════════════════ INSTALL NOTES ═══════════════════════════════════╣
+                ╠═══════════════ INSTALL NOTES ════════════════╣
 ║                                                                              ║
 ║  1. Unpack                                                                   ║
 ║  2. Install                                                                  ║

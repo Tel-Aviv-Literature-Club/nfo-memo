@@ -63,6 +63,7 @@ export component AppWindow inherits Window {
     in-out property <bool> about-visible: false;
     in-out property <int> builder-width: 80;
     in-out property <int> builder-cursor-position: 0;
+    in-out property <int> builder-anchor-position: 0;
     in-out property <string> builder-line-alignment: "left";
     in-out property <int> builder-box-width: 48;
     in-out property <string> builder-text: "type in here...";
@@ -90,7 +91,7 @@ export component AppWindow inherits Window {
     callback quit-requested;
     callback format-requested(string, int);
     callback builder-preview-requested(string, string, string, int, int);
-    callback builder-align-line(string, int, string, int);
+    callback builder-align-line(string, int, int, string, int);
     callback builder-box-line(string, int, int, int, string, string);
     callback builder-scene-example;
     callback builder-add-section(string, int, int, string);
@@ -367,9 +368,9 @@ export component AppWindow inherits Window {
                                 Button { text: "Add section"; clicked => { root.builder-add-section(root.builder-text, root.builder-box-width, root.builder-width, root.builder-style); } }
                                 Button { text: "Box current line"; clicked => { root.builder-box-line(root.builder-text, root.builder-cursor-position, root.builder-box-width, root.builder-width, root.builder-style, root.builder-line-alignment); } }
                                 Rectangle { width: 1px; background: Palette.border; }
-                                Button { text: "Left line"; clicked => { root.builder-line-alignment = "left"; root.builder-align-line(root.builder-text, root.builder-cursor-position, "left", root.builder-width - 2); } }
-                                Button { text: "Center line"; clicked => { root.builder-line-alignment = "center"; root.builder-align-line(root.builder-text, root.builder-cursor-position, "center", root.builder-width - 2); } }
-                                Button { text: "Right line"; clicked => { root.builder-line-alignment = "right"; root.builder-align-line(root.builder-text, root.builder-cursor-position, "right", root.builder-width - 2); } }
+                                Button { text: "Left line"; clicked => { root.builder-line-alignment = "left"; root.builder-align-line(root.builder-text, root.builder-anchor-position, root.builder-cursor-position, "left", root.builder-width - 2); builder-input.set-selection-offsets(root.builder-cursor-position, root.builder-cursor-position); } }
+                                Button { text: "Center line"; clicked => { root.builder-line-alignment = "center"; root.builder-align-line(root.builder-text, root.builder-anchor-position, root.builder-cursor-position, "center", root.builder-width - 2); builder-input.set-selection-offsets(root.builder-cursor-position, root.builder-cursor-position); } }
+                                Button { text: "Right line"; clicked => { root.builder-line-alignment = "right"; root.builder-align-line(root.builder-text, root.builder-anchor-position, root.builder-cursor-position, "right", root.builder-width - 2); builder-input.set-selection-offsets(root.builder-cursor-position, root.builder-cursor-position); } }
                                 Button { text: "Box width: " + root.builder-box-width; clicked => { root.builder-box-width = root.builder-box-width >= root.builder-width ? 24 : root.builder-box-width == 24 ? 32 : root.builder-box-width == 32 ? 40 : root.builder-box-width == 40 ? 48 : root.builder-box-width == 48 ? 60 : 72; root.builder-preview-requested(root.builder-text, root.builder-style, root.builder-alignment, root.builder-box-width, root.builder-width); } }
                                 Button { text: "Box style: " + (root.builder-style == "single" ? "Single" : root.builder-style == "double" ? "Double" : "Heavy"); clicked => { root.builder-style = root.builder-style == "single" ? "double" : root.builder-style == "double" ? "heavy" : "single"; root.builder-preview-requested(root.builder-text, root.builder-style, root.builder-alignment, root.builder-box-width, root.builder-width); } }
                                 Rectangle { horizontal-stretch: 1; }
@@ -391,11 +392,11 @@ export component AppWindow inherits Window {
                                             builder-input := TextInput {
                                                 text <=> root.builder-text;
                                                 single-line: false;
-                                                wrap: TextWrap.word-wrap;
+                                                wrap: TextWrap.no-wrap;
                                                 font-family: root.editor-font-family;
                                                 font-size: 17px;
                                                 color: Palette.foreground;
-                                                cursor-position-changed(position) => { root.builder-cursor-position = self.cursor-position-byte-offset; }
+                                                cursor-position-changed(position) => { root.builder-cursor-position = self.cursor-position-byte-offset; root.builder-anchor-position = self.anchor-position-byte-offset; }
                                                 edited => { root.builder-preview-requested(self.text, root.builder-style, root.builder-alignment, root.builder-box-width, root.builder-width); }
                                             }
                                         }

@@ -1,6 +1,6 @@
 [package]
 name = "nfo-memo"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "A native, CP437-aware NFO editor and reader"
 license = "GPL-3.0-only"

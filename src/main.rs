@@ -270,15 +270,30 @@ fn main() -> Result<()> {
     }
     {
         let weak = ui.as_weak();
-        ui.on_builder_align_line(move |text, cursor, alignment, width| {
+        ui.on_builder_align_line(move |text, anchor, cursor, alignment, width| {
             let Some(ui) = weak.upgrade() else { return };
-            let formatted = builder::align_current_line(
-                text.as_str(),
-                cursor.max(0) as usize,
-                width.max(20) as usize,
-                alignment.as_str(),
-            );
+            let (formatted, caret) = if anchor != cursor {
+                builder::align_selection(
+                    text.as_str(),
+                    anchor.max(0) as usize,
+                    cursor.max(0) as usize,
+                    width.max(20) as usize,
+                    alignment.as_str(),
+                )
+            } else {
+                (
+                    builder::align_current_line(
+                        text.as_str(),
+                        cursor.max(0) as usize,
+                        width.max(20) as usize,
+                        alignment.as_str(),
+                    ),
+                    cursor.max(0) as usize,
+                )
+            };
             ui.set_builder_text(formatted.clone().into());
+            ui.set_builder_cursor_position(caret as i32);
+            ui.set_builder_anchor_position(caret as i32);
             ui.set_builder_preview(
                 builder::build_preview(
                     &formatted,

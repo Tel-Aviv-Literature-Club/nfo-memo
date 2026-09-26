@@ -148,7 +148,7 @@ pub fn section_block(style: &str, width: usize, canvas_width: usize) -> String {
     };
     let rule = horizontal.to_string().repeat(width.saturating_sub(2));
     let title = "SECTION TITLE";
-    let pad = width.saturating_sub(title.chars().count() + 2);
+    let pad = width.saturating_sub(title.chars().count() + 4);
     let title_left = pad / 2;
     let title_right = pad - title_left;
     let body = "Write section text here.";
@@ -203,10 +203,62 @@ pub fn align_current_line(text: &str, cursor: usize, width: usize, alignment: &s
                 "right" => width.saturating_sub(len),
                 _ => 0,
             };
-            *line = format!("{}{content}", " ".repeat(pad));
+            let left = pad;
+            let right = width.saturating_sub(len + left);
+            *line = format!("{}{content}{}", " ".repeat(left), " ".repeat(right));
         }
     }
     lines.join("\n")
+}
+
+/// Align a highlighted range inside its existing line, preserving the text around it.
+pub fn align_selection(
+    text: &str,
+    anchor: usize,
+    focus: usize,
+    width: usize,
+    alignment: &str,
+) -> (String, usize) {
+    let start = anchor.min(focus).min(text.len());
+    let end = anchor.max(focus).min(text.len());
+    let start = (0..=start)
+        .rev()
+        .find(|&i| text.is_char_boundary(i))
+        .unwrap_or(0);
+    let end = (start..=end)
+        .rev()
+        .find(|&i| text.is_char_boundary(i))
+        .unwrap_or(start);
+    if start == end || text[start..end].contains('\n') {
+        return (align_current_line(text, focus, width, alignment), focus);
+    }
+    let line_start = text[..start].rfind('\n').map_or(0, |i| i + 1);
+    let line_end = text[end..].find('\n').map_or(text.len(), |i| end + i);
+    let prefix = &text[line_start..start];
+    let selected = &text[start..end];
+    let suffix = &text[end..line_end];
+    let available = width.saturating_sub(prefix.chars().count() + suffix.chars().count());
+    let free = available.saturating_sub(selected.chars().count());
+    let left = match alignment {
+        "center" => free / 2,
+        "right" => free,
+        _ => 0,
+    };
+    let right = free.saturating_sub(left);
+    let replacement = format!(
+        "{}{}{}{}{}",
+        prefix,
+        " ".repeat(left),
+        selected,
+        " ".repeat(right),
+        suffix
+    );
+    let mut result = String::with_capacity(text.len() + free);
+    result.push_str(&text[..line_start]);
+    result.push_str(&replacement);
+    result.push_str(&text[line_end..]);
+    let caret = line_start + replacement.len();
+    (result, caret)
 }
 
 pub fn box_current_line(
