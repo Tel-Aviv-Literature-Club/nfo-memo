@@ -1,0 +1,35 @@
+[package]
+name = "nfo-memo"
+version = "0.1.0"
+edition = "2024"
+description = "A native, CP437-aware NFO editor and reader"
+license = "GPL-3.0-only"
+build = "build.rs"
+
+[dependencies]
+ab_glyph = "0.2"
+anyhow = "1.0.104"
+directories = "6.0.0"
+encoding_rs = "0.8.42"
+fontdb = "0.24"
+image = { version = "0.25.10", default-features = false, features = ["png", "webp"] }
+rfd = "0.17.2"
+slint = { version = "1.18.1", default-features = false, features = ["std", "backend-winit", "renderer-femtovg", "accessibility", "compat-1-2"] }
+tempfile = "3.27.0"
+
+[build-dependencies]
+slint-build = "1.18.1"
+winres = "0.1.12"
+
+[profile.release]
+lto = "thin"
+strip = true
+codegen-units = 1
+
+[package.metadata.bundle]
+name = "NFO Memo"
+identifier = "dev.nfomemo.app"
+copyright = "Copyright 2026 NFO Memo contributors"
+category = "Utility"
+short_description = "Native CP437-aware NFO editor and reader"
+icon = ["assets/nfo.png", "assets/nfo.ico"]

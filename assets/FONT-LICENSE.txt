@@ -1,0 +1,9 @@
+PxPlus IBM VGA8
+Copyright (c) VileR / int10h.org
+
+This font is part of The Ultimate Oldschool PC Font Pack and is licensed
+under the Creative Commons Attribution-ShareAlike 4.0 International license.
+
+Source: https://int10h.org/oldschool-pc-fonts/
+License: https://creativecommons.org/licenses/by-sa/4.0/
+

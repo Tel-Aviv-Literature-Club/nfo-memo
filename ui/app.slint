@@ -1,0 +1,474 @@
+import { AboutSlint, Button, ComboBox, LineEdit, Palette, ScrollView, TextEdit } from "std-widgets.slint";
+export { Palette } from "std-widgets.slint";
+import "../assets/PxPlus_IBM_VGA8.ttf";
+
+component SectionLabel inherits Text {
+    color: Palette.alternate-foreground;
+    font-size: 11px;
+    font-weight: 700;
+    height: 22px;
+    vertical-alignment: center;
+}
+
+component AppTab inherits Rectangle {
+    in property <string> label;
+    in property <bool> selected;
+    callback clicked;
+    width: 88px;
+    background: selected ? Palette.background : Palette.alternate-background;
+    border-width: 1px;
+    border-color: selected ? Palette.accent-background : Palette.border;
+    Text {
+        text: root.label;
+        color: selected ? Palette.foreground : Palette.alternate-foreground;
+        font-size: 11px;
+        font-weight: selected ? 700 : 400;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    touch := TouchArea { clicked => { root.clicked(); } }
+}
+
+export struct BuilderBlock {
+    kind: string,
+    title: string,
+    text: string,
+    alignment: string,
+    placement: string,
+    width: int,
+    style: string,
+}
+
+export component AppWindow inherits Window {
+    title: "NFO Memo";
+    icon: @image-url("../assets/nfo.svg");
+    preferred-width: 1120px;
+    preferred-height: 650px;
+    min-width: 900px;
+    min-height: 500px;
+    full-screen: false;
+    background: Palette.background;
+    default-font-family: "Segoe UI";
+
+    in-out property <string> document-text: "";
+    in property <string> file-name: "untitled.nfo";
+    in property <string> status-text: "ready";
+    in property <string> encoding-name: "CP437";
+    in property <string> line-ending-name: "CRLF";
+    in property <int> char-count: 0;
+    in property <int> line-count: 1;
+    in property <int> widest-line: 0;
+    in-out property <int> active-tab: 0;
+    in-out property <string> editor-font-family: "PxPlus IBM VGA8";
+    in-out property <bool> about-visible: false;
+    in-out property <int> builder-width: 80;
+    in-out property <int> builder-cursor-position: 0;
+    in-out property <string> builder-line-alignment: "left";
+    in-out property <int> builder-box-width: 48;
+    in-out property <string> builder-text: "type in here...";
+    in-out property <string> builder-style: "single";
+    in-out property <string> builder-alignment: "center";
+    in property <string> builder-preview: "";
+    in property <[BuilderBlock]> builder-blocks;
+    in-out property <int> selected-builder-block: -1;
+    in property <[string]> gpg-keys: ["System default"];
+    in-out property <int> selected-gpg-key: 0;
+    in property <string> gpg-status: "GPG: system default";
+
+    callback document-edited(string);
+    callback new-requested;
+    callback open-requested;
+    callback save-requested;
+    callback save-as-requested;
+    callback encoding-next;
+    callback line-ending-next;
+    callback template-requested(int);
+    callback snippet-requested(int);
+    callback export-requested(string, string);
+    callback sign-requested;
+    callback verify-requested;
+    callback quit-requested;
+    callback format-requested(string, int);
+    callback builder-preview-requested(string, string, string, int, int);
+    callback builder-align-line(string, int, string, int);
+    callback builder-box-line(string, int, int, int, string, string);
+    callback builder-scene-example;
+    callback builder-add-section(string, int, int, string);
+    callback builder-insert-requested(string, string, string, int, int);
+    callback builder-add-block(string);
+    callback builder-select-block(int);
+    callback builder-block-edited(int, string, string);
+    callback builder-set-alignment(string);
+    callback builder-set-placement(string);
+    callback builder-set-style(string);
+    callback builder-set-width(int);
+    callback builder-delete-block;
+    callback builder-scene-template;
+    callback builder-export-document;
+    callback builder-canvas-width-changed(int);
+    callback set-default-gpg-key(int);
+    callback refresh-gpg-keys;
+
+    public function show-editor() {
+        root.active-tab = 0;
+        editor.focus();
+    }
+
+    public function show-reader() {
+        root.active-tab = 2;
+        reader.focus();
+    }
+
+    public function show-builder() {
+        root.active-tab = 1;
+        builder-input.focus();
+        root.builder-preview-requested(root.builder-text, root.builder-style, root.builder-alignment, root.builder-box-width, root.builder-width);
+    }
+
+    MenuBar {
+        Menu {
+            title: "File";
+            MenuItem { title: "New"; shortcut: @keys(Control + N); activated => { root.new-requested(); root.show-editor(); } }
+            MenuItem { title: "Open..."; shortcut: @keys(Control + O); activated => { root.open-requested(); } }
+            MenuSeparator {}
+            MenuItem { title: "Save"; shortcut: @keys(Control + S); activated => { root.save-requested(); } }
+            MenuItem { title: "Save As..."; shortcut: @keys(Control + Shift + S); activated => { root.save-as-requested(); } }
+            MenuSeparator {}
+            MenuItem { title: "Exit"; activated => { root.quit-requested(); } }
+        }
+        Menu {
+            title: "Edit";
+            MenuItem { title: "Cut"; shortcut: @keys(Control + X); enabled: root.active-tab != 2; activated => { if root.active-tab == 1 { builder-input.cut(); } else { editor.cut(); } } }
+            MenuItem { title: "Copy"; shortcut: @keys(Control + C); activated => { if root.active-tab == 0 { editor.copy(); } else if root.active-tab == 1 { builder-input.copy(); } else { reader.copy(); } } }
+            MenuItem { title: "Paste"; shortcut: @keys(Control + V); activated => { if root.active-tab == 1 { builder-input.paste(); } else { root.show-editor(); editor.paste(); } } }
+            MenuSeparator {}
+            MenuItem { title: "Select All"; shortcut: @keys(Control + A); activated => { if root.active-tab == 0 { editor.select-all(); } else if root.active-tab == 1 { builder-input.select-all(); } else { reader.select-all(); } } }
+        }
+        Menu {
+            title: "Insert";
+            Menu {
+                title: "Template";
+                MenuItem { title: "Scene release NFO"; activated => { root.template-requested(0); root.show-editor(); } }
+                MenuItem { title: "Technical readme"; activated => { root.template-requested(1); root.show-editor(); } }
+                MenuItem { title: "file_id.diz"; activated => { root.template-requested(2); root.show-editor(); } }
+                MenuItem { title: "BBS bulletin"; activated => { root.template-requested(3); root.show-editor(); } }
+            }
+            MenuSeparator {}
+            MenuItem { title: "Single-line box"; activated => { root.snippet-requested(0); root.show-editor(); } }
+            MenuItem { title: "Double-line box"; activated => { root.snippet-requested(1); root.show-editor(); } }
+            MenuItem { title: "Heavy box"; activated => { root.snippet-requested(2); root.show-editor(); } }
+            MenuItem { title: "Horizontal rule"; activated => { root.snippet-requested(3); root.show-editor(); } }
+            MenuItem { title: "Shade ramp"; activated => { root.snippet-requested(5); root.show-editor(); } }
+            MenuItem { title: "Tag"; activated => { root.snippet-requested(7); root.show-editor(); } }
+        }
+        Menu {
+            title: "View";
+            MenuItem { title: "Editor"; shortcut: @keys(Control + "1"); checked: root.active-tab == 0; activated => { root.show-editor(); } }
+            MenuItem { title: "NFO Builder"; shortcut: @keys(Control + "2"); checked: root.active-tab == 1; activated => { root.show-builder(); } }
+            MenuItem { title: "Reader"; shortcut: @keys(Control + "3"); checked: root.active-tab == 2; activated => { root.show-reader(); } }
+            MenuSeparator {}
+            Menu {
+                title: "Font";
+                MenuItem { title: "PxPlus IBM VGA8"; checked: root.editor-font-family == "PxPlus IBM VGA8"; activated => { root.editor-font-family = "PxPlus IBM VGA8"; } }
+                MenuItem { title: "Cascadia Mono"; checked: root.editor-font-family == "Cascadia Mono"; activated => { root.editor-font-family = "Cascadia Mono"; } }
+                MenuItem { title: "Consolas"; checked: root.editor-font-family == "Consolas"; activated => { root.editor-font-family = "Consolas"; } }
+                MenuItem { title: "Courier New"; checked: root.editor-font-family == "Courier New"; activated => { root.editor-font-family = "Courier New"; } }
+            }
+        }
+        Menu {
+            title: "Tools";
+            Menu {
+                title: "NFO Builder";
+                MenuItem { title: "Open Visual Builder"; activated => { root.show-builder(); } }
+                MenuSeparator {}
+                MenuItem { title: "Single-line Box"; checked: root.builder-style == "single"; activated => { root.builder-style = "single"; root.show-builder(); } }
+                MenuItem { title: "Double-line Box"; checked: root.builder-style == "double"; activated => { root.builder-style = "double"; root.show-builder(); } }
+                MenuItem { title: "Heavy Box"; checked: root.builder-style == "heavy"; activated => { root.builder-style = "heavy"; root.show-builder(); } }
+            }
+            MenuSeparator {}
+            MenuItem { title: "GPG Sign..."; activated => { root.sign-requested(); } }
+            MenuItem { title: "Verify Signature..."; activated => { root.verify-requested(); } }
+            MenuItem { title: "Refresh GPG Keys"; activated => { root.refresh-gpg-keys(); } }
+            MenuSeparator {}
+            MenuItem { title: "Export PNG..."; activated => { root.export-requested("png", root.editor-font-family); } }
+            MenuItem { title: "Export WebP..."; activated => { root.export-requested("webp", root.editor-font-family); } }
+            MenuSeparator {}
+            MenuItem { title: "Next Encoding"; activated => { root.encoding-next(); } }
+            MenuItem { title: "Next Line Ending"; activated => { root.line-ending-next(); } }
+        }
+        Menu {
+            title: "Help";
+            MenuItem { title: "About NFO Memo"; activated => { root.about-visible = true; } }
+        }
+    }
+
+    VerticalLayout {
+        spacing: 0px;
+
+        Rectangle {
+            height: 48px;
+            background: Palette.alternate-background;
+            border-width: 1px;
+            border-color: Palette.border;
+            HorizontalLayout {
+                padding: 7px;
+                spacing: 6px;
+                Button { text: "New"; clicked => { root.new-requested(); root.show-editor(); } }
+                Button { text: "Open..."; clicked => { root.open-requested(); } }
+                Button { text: "Save"; clicked => { root.save-requested(); } }
+                Rectangle { width: 1px; background: Palette.border; }
+                Button { text: "Sign..."; clicked => { root.sign-requested(); } }
+                Button { text: "Verify..."; clicked => { root.verify-requested(); } }
+                Rectangle { width: 1px; background: Palette.border; }
+                Button { text: "Export PNG..."; clicked => { root.export-requested("png", root.editor-font-family); } }
+                Button { text: "Export WebP..."; clicked => { root.export-requested("webp", root.editor-font-family); } }
+                Rectangle { horizontal-stretch: 1; }
+                Text { text: "Font"; color: Palette.alternate-foreground; font-size: 11px; vertical-alignment: center; }
+                ComboBox {
+                    width: 164px;
+                    model: ["PxPlus IBM VGA8", "Cascadia Mono", "Consolas", "Courier New"];
+                    current-value <=> root.editor-font-family;
+                }
+                Button { text: root.encoding-name; clicked => { root.encoding-next(); } }
+                Button { text: root.line-ending-name; clicked => { root.line-ending-next(); } }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 0px;
+            Rectangle {
+                width: root.active-tab == 1 ? 0px : 220px;
+                visible: root.active-tab != 1;
+                background: Palette.alternate-background;
+                border-width: 1px;
+                border-color: Palette.border;
+                VerticalLayout {
+                    padding: 10px;
+                    spacing: 6px;
+                    SectionLabel { text: "Templates"; }
+                    Button { text: "Scene release NFO"; clicked => { root.template-requested(0); root.show-editor(); } }
+                    Button { text: "Technical readme"; clicked => { root.template-requested(1); root.show-editor(); } }
+                    Button { text: "file_id.diz"; clicked => { root.template-requested(2); root.show-editor(); } }
+                    Button { text: "BBS bulletin"; clicked => { root.template-requested(3); root.show-editor(); } }
+                    Rectangle { height: 7px; }
+                    SectionLabel { text: "Insert at end"; }
+                    GridLayout {
+                        spacing: 5px;
+                        Row {
+                            Button { text: "┌─┐ Box"; clicked => { root.snippet-requested(0); root.show-editor(); } }
+                            Button { text: "╔═╗ Box"; clicked => { root.snippet-requested(1); root.show-editor(); } }
+                        }
+                        Row {
+                            Button { text: "┏━┓ Heavy"; clicked => { root.snippet-requested(2); root.show-editor(); } }
+                            Button { text: "─── Rule"; clicked => { root.snippet-requested(3); root.show-editor(); } }
+                        }
+                        Row {
+                            Button { text: "░▒▓ Shade"; clicked => { root.snippet-requested(5); root.show-editor(); } }
+                            Button { text: "[ ] Tag"; clicked => { root.snippet-requested(7); root.show-editor(); } }
+                        }
+                    }
+                    Rectangle { height: 7px; }
+                    SectionLabel { text: "Signing key"; }
+                    ComboBox {
+                        model: root.gpg-keys;
+                        current-index <=> root.selected-gpg-key;
+                    }
+                    HorizontalLayout {
+                        spacing: 5px;
+                        Button { text: "Set default"; clicked => { root.set-default-gpg-key(root.selected-gpg-key); } }
+                        Button { text: "Refresh"; clicked => { root.refresh-gpg-keys(); } }
+                    }
+                    Rectangle { vertical-stretch: 1; }
+                    Rectangle {
+                        height: 56px;
+                        background: Palette.background;
+                        border-width: 1px;
+                        border-color: Palette.border;
+                        border-radius: 4px;
+                        VerticalLayout {
+                            padding: 8px;
+                            Text { text: root.editor-font-family; color: Palette.foreground; font-family: root.editor-font-family; font-size: 13px; overflow: elide; }
+                            Text { text: "active editor font"; color: Palette.alternate-foreground; font-size: 10px; }
+                        }
+                    }
+                }
+            }
+
+            VerticalLayout {
+                spacing: 0px;
+                Rectangle {
+                    height: 34px;
+                    background: Palette.alternate-background;
+                    HorizontalLayout {
+                        padding-left: 7px;
+                        padding-top: 4px;
+                        spacing: 3px;
+                        AppTab { label: "Editor"; selected: root.active-tab == 0; clicked => { root.show-editor(); } }
+                        AppTab { label: "Builder"; selected: root.active-tab == 1; clicked => { root.show-builder(); } }
+                        AppTab { label: "Reader"; selected: root.active-tab == 2; clicked => { root.show-reader(); } }
+                        Rectangle { horizontal-stretch: 1; }
+                        Text {
+                            text: "10       20       30       40       50       60       70       80";
+                            color: Palette.alternate-foreground;
+                            font-family: "PxPlus IBM VGA8";
+                            font-size: 10px;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                Rectangle {
+                    background: Palette.background;
+                    border-width: 1px;
+                    border-color: Palette.border;
+                    clip: true;
+                    editor := TextEdit {
+                        x: 8px; y: 7px;
+                        width: parent.width - 16px;
+                        height: parent.height - 14px;
+                        visible: root.active-tab == 0;
+                        text <=> root.document-text;
+                        font-family: root.editor-font-family;
+                        font-size: 17px;
+                        wrap: TextWrap.no-wrap;
+                        edited => { root.document-edited(self.text); }
+                    }
+                    reader := TextEdit {
+                        x: 8px; y: 7px;
+                        width: parent.width - 16px;
+                        height: parent.height - 14px;
+                        visible: root.active-tab == 2;
+                        text: root.document-text;
+                        read-only: true;
+                        font-family: root.editor-font-family;
+                        font-size: 17px;
+                        wrap: TextWrap.no-wrap;
+                    }
+                    builder-surface := Rectangle {
+                        x: 0px; y: 0px;
+                        width: parent.width;
+                        height: parent.height;
+                        visible: root.active-tab == 1;
+                        background: Palette.background;
+
+                        VerticalLayout {
+                            padding: 14px;
+                            spacing: 9px;
+                            HorizontalLayout {
+                                height: 36px;
+                                Button { text: "Scene release example"; clicked => { root.builder-scene-example(); } }
+                                Rectangle { horizontal-stretch: 1; }
+                                Button { text: "Export to editor"; clicked => { root.builder-insert-requested(root.builder-text, root.builder-style, root.builder-alignment, root.builder-box-width, root.builder-width); } }
+                            }
+                            HorizontalLayout {
+                                height: 38px;
+                                spacing: 5px;
+                                Button { text: "Add centered title"; clicked => { root.builder-text = root.builder-text + "\n\n                                 RELEASE TITLE\n"; root.builder-preview-requested(root.builder-text, root.builder-style, root.builder-alignment, root.builder-box-width, root.builder-width); } }
+                                Button { text: "Add section"; clicked => { root.builder-add-section(root.builder-text, root.builder-box-width, root.builder-width, root.builder-style); } }
+                                Button { text: "Box current line"; clicked => { root.builder-box-line(root.builder-text, root.builder-cursor-position, root.builder-box-width, root.builder-width, root.builder-style, root.builder-line-alignment); } }
+                                Rectangle { width: 1px; background: Palette.border; }
+                                Button { text: "Left line"; clicked => { root.builder-line-alignment = "left"; root.builder-align-line(root.builder-text, root.builder-cursor-position, "left", root.builder-width - 2); } }
+                                Button { text: "Center line"; clicked => { root.builder-line-alignment = "center"; root.builder-align-line(root.builder-text, root.builder-cursor-position, "center", root.builder-width - 2); } }
+                                Button { text: "Right line"; clicked => { root.builder-line-alignment = "right"; root.builder-align-line(root.builder-text, root.builder-cursor-position, "right", root.builder-width - 2); } }
+                                Button { text: "Box width: " + root.builder-box-width; clicked => { root.builder-box-width = root.builder-box-width >= root.builder-width ? 24 : root.builder-box-width == 24 ? 32 : root.builder-box-width == 32 ? 40 : root.builder-box-width == 40 ? 48 : root.builder-box-width == 48 ? 60 : 72; root.builder-preview-requested(root.builder-text, root.builder-style, root.builder-alignment, root.builder-box-width, root.builder-width); } }
+                                Button { text: "Box style: " + (root.builder-style == "single" ? "Single" : root.builder-style == "double" ? "Double" : "Heavy"); clicked => { root.builder-style = root.builder-style == "single" ? "double" : root.builder-style == "double" ? "heavy" : "single"; root.builder-preview-requested(root.builder-text, root.builder-style, root.builder-alignment, root.builder-box-width, root.builder-width); } }
+                                Rectangle { horizontal-stretch: 1; }
+                                Button { text: "Copy"; clicked => { builder-input.copy(); } }
+                                Button { text: "Paste"; clicked => { builder-input.paste(); } }
+                            }
+                            HorizontalLayout {
+                                spacing: 12px;
+                                Rectangle {
+                                    horizontal-stretch: 1;
+                                    background: Palette.alternate-background;
+                                    border-width: 1px; border-color: Palette.border;
+                                    VerticalLayout {
+                                        padding: 9px; spacing: 5px;
+                                        Text { text: "WRITE YOUR RELEASE"; color: Palette.alternate-foreground; font-size: 10px; font-weight: 700; height: 18px; }
+                                        ScrollView {
+                                            content-width: max(self.visible-width, builder-input.preferred-width);
+                                            content-height: max(self.visible-height, builder-input.preferred-height);
+                                            builder-input := TextInput {
+                                                text <=> root.builder-text;
+                                                single-line: false;
+                                                wrap: TextWrap.word-wrap;
+                                                font-family: root.editor-font-family;
+                                                font-size: 17px;
+                                                color: Palette.foreground;
+                                                cursor-position-changed(position) => { root.builder-cursor-position = self.cursor-position-byte-offset; }
+                                                edited => { root.builder-preview-requested(self.text, root.builder-style, root.builder-alignment, root.builder-box-width, root.builder-width); }
+                                            }
+                                        }
+                                    }
+                                }
+                                Rectangle {
+                                    horizontal-stretch: 1;
+                                    background: #000000;
+                                    border-width: 1px; border-color: Palette.border;
+                                    VerticalLayout {
+                                        padding: 9px; spacing: 5px;
+                                        Text { text: "NFO PREVIEW · " + root.builder-width + " COLUMNS"; color: Palette.alternate-foreground; font-size: 10px; font-weight: 700; height: 18px; }
+                                        ScrollView {
+                                            content-width: max(self.visible-width, preview-art.preferred-width);
+                                            content-height: max(self.visible-height, preview-art.preferred-height);
+                                            content-x: 0px;
+                                            content-y: 0px;
+                                            preview-art := Text { text: root.builder-preview; color: #f2f2f2; font-family: "PxPlus IBM VGA8"; font-size: 12px; wrap: TextWrap.no-wrap; vertical-alignment: top; }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            height: 28px;
+            background: Palette.alternate-background;
+            border-width: 1px;
+            border-color: Palette.border;
+            HorizontalLayout {
+                padding-left: 9px;
+                padding-right: 9px;
+                spacing: 12px;
+                Text { text: root.status-text; color: Palette.alternate-foreground; font-size: 10px; vertical-alignment: center; overflow: elide; }
+                Rectangle { horizontal-stretch: 1; }
+                Text { text: root.line-count + " lines"; color: Palette.alternate-foreground; font-size: 10px; vertical-alignment: center; }
+                Text { text: root.char-count + " chars"; color: Palette.alternate-foreground; font-size: 10px; vertical-alignment: center; }
+                Text { text: "max col " + root.widest-line; color: root.widest-line > 80 ? #ff8175 : Palette.alternate-foreground; font-size: 10px; vertical-alignment: center; }
+                Text { text: root.encoding-name + " / " + root.line-ending-name; color: Palette.foreground; font-size: 10px; font-weight: 700; vertical-alignment: center; }
+            }
+        }
+    }
+
+    if root.about-visible : Rectangle {
+        x: 0px; y: 0px;
+        width: parent.width;
+        height: parent.height;
+        background: #00000099;
+        TouchArea { clicked => { root.about-visible = false; } }
+        Rectangle {
+            width: 430px;
+            height: 330px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            background: Palette.background;
+            border-width: 1px;
+            border-color: Palette.border;
+            border-radius: 8px;
+            VerticalLayout {
+                padding: 20px;
+                spacing: 10px;
+                Text { text: "NFO Memo"; color: Palette.foreground; font-family: "PxPlus IBM VGA8"; font-size: 24px; horizontal-alignment: center; }
+                Text { text: "Native CP437 NFO editor and reader"; color: Palette.alternate-foreground; font-size: 11px; horizontal-alignment: center; }
+                Rectangle { height: 1px; background: Palette.border; }
+                            Text { text: "Version 0.1.0\nApplication: GPL-3.0-only\nPxPlus IBM VGA8: CC BY-SA 4.0\n" + root.gpg-status; color: Palette.foreground; font-size: 11px; horizontal-alignment: center; }
+                AboutSlint { }
+                Rectangle { vertical-stretch: 1; }
+                Button { text: "Close"; clicked => { root.about-visible = false; } }
+            }
+        }
+    }
+}
